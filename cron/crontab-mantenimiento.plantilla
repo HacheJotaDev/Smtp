@@ -1,0 +1,17 @@
+# =====================================================================
+# /etc/cron.d/campanas-mantenimiento  —  GENERADO DESDE PLANTILLA
+# Origen: cron/crontab-mantenimiento.plantilla → renderizar-plantillas.sh
+# =====================================================================
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Vigía: cola de Postfix, disco, servicios. Alerta por correo al postmaster.
+*/10 * * * * root {{DIR_BASE}}/scripts/vigia-cola.sh >> /var/log/campanas/vigia.log 2>&1
+
+# Copia de seguridad diaria (BD de Mautic + configuraciones + claves DKIM)
+30 2 * * * root {{DIR_BASE}}/scripts/backup.sh >> /var/log/campanas/backup.log 2>&1
+
+# Renovación TLS (certbot instala su timer; esto solo recarga servicios
+# tras renovar — además hay hook en /etc/letsencrypt/renewal-hooks/deploy/)
+0 4 * * 1 root certbot renew --quiet >> /var/log/campanas/certbot.log 2>&1

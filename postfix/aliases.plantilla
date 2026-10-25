@@ -1,0 +1,19 @@
+# =====================================================================
+# /etc/aliases  —  GENERADO DESDE PLANTILLA
+# Origen: postfix/aliases.plantilla → scripts/renderizar-plantillas.sh
+# Tras renderizar: ejecutar `newaliases`.
+# =====================================================================
+# Alias de RFC 2142 esenciales:
+postmaster: root
+abuse:      root
+webmaster:  root
+hostmaster: root
+
+# El administrador real recibe lo de root:
+root: {{CORREO_POSTMASTER}}
+
+# Buzón de rebotes: el envelope sender de las campañas es
+# {{DIRECCION_REBOTES}}@{{DOMINIO}}. Postfix entrega localmente en el
+# Maildir del usuario (creado por scripts/20-postfix.sh), que Mautic
+# lee vía IMAP interno.
+{{DIRECCION_REBOTES}}: {{USUARIO_REBOTES}}

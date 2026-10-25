@@ -1,0 +1,35 @@
+# =====================================================================
+# /etc/cron.d/mautic-campanas  —  GENERADO DESDE PLANTILLA
+# Origen: cron/crontab-mautic.plantilla → scripts/renderizar-plantillas.sh
+#
+# Tareas de Mautic ejecutadas en el HOST contra el contenedor mautic_web.
+# El ritmo de envío se controla con:
+#   - la frecuencia de cada línea (campo de minutos)
+#   - --limit={{LOTE_EMAILS}} en mautic:email:send (correo.env)
+#
+# DURANTE EL CALENTAMIENTO (ver docs/04-entregabilidad.md): envía poco y
+# espaciado; sube solo con métricas sanas. Para PAUSAR el envío basta
+# comentar la línea de mautic:email:send: al no ejecutarse, la cola interna
+# de Mautic deja de procesarse y no sale ningún mensaje nuevo.
+#
+# Nota: el comando exacto de cada tarea puede verificarlo con:
+#   docker compose -f {{DIR_BASE}}/compose.yaml exec mautic_web \
+#     php /var/www/html/bin/console list mautic
+# =====================================================================
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# --- Segmentos y campañas ---
+*/10 * * * * root docker compose -f {{DIR_BASE}}/compose.yaml exec -T mautic_web php /var/www/html/bin/console mautic:segments:update >> /var/log/campanas/mautic-cron.log 2>&1
+*/5  * * * * root docker compose -f {{DIR_BASE}}/compose.yaml exec -T mautic_web php /var/www/html/bin/console mautic:campaigns:update >> /var/log/campanas/mautic-cron.log 2>&1
+*/5  * * * * root docker compose -f {{DIR_BASE}}/compose.yaml exec -T mautic_web php /var/www/html/bin/console mautic:campaigns:trigger >> /var/log/campanas/mautic-cron.log 2>&1
+
+# --- Envío (cola): LOTE BAJO durante calentamiento ---
+*/5  * * * * root docker compose -f {{DIR_BASE}}/compose.yaml exec -T mautic_web php /var/www/html/bin/console mautic:email:send --limit={{LOTE_EMAILS}} >> /var/log/campanas/mautic-cron.log 2>&1
+
+# --- Rebotes y bajas por IMAP (buzón interno) ---
+*/10 * * * * root docker compose -f {{DIR_BASE}}/compose.yaml exec -T mautic_web php /var/www/html/bin/console mautic:monitored_email >> /var/log/campanas/mautic-cron.log 2>&1
+
+# --- Mantenimiento diario ---
+15 3 * * * root docker compose -f {{DIR_BASE}}/compose.yaml exec -T mautic_web php /var/www/html/bin/console mautic:maintenance:cleanup --batches=50 >> /var/log/campanas/mautic-cron.log 2>&1

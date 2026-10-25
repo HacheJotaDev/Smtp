@@ -1,0 +1,50 @@
+# ===== Secretos y entornos reales (NUNCA commitear) =====
+.env
+.env.*
+!.env.example
+correo.env
+correo.env.*
+!correo.env.example
+secrets/
+.secrets/
+*secrets*.env
+
+# ===== Claves y certificados =====
+*.private
+*.key
+*.pem
+*.p12
+*.csr
+claves/
+**/claves/
+letsencrypt/
+*.txt.bak
+
+# ===== Datos, volúmenes y copias de seguridad =====
+data/
+volumes/
+backups/
+*.sql
+*.sql.gz
+*.dump
+*.tar
+*.tar.gz
+*.tgz
+
+# ===== Registros y temporales =====
+*.log
+tmp/
+.cache/
+
+# ===== Salidas generadas (informes de diagnóstico) =====
+diagnostico-*.txt
+
+# ===== Editor / SO =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ===== Python =====
+__pycache__/
+*.pyc

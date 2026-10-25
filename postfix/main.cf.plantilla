@@ -1,0 +1,121 @@
+# =====================================================================
+# /etc/postfix/main.cf  —  GENERADO DESDE PLANTILLA
+# Origen: postfix/main.cf.plantilla  →  scripts/renderizar-plantillas.sh
+# NO edites este archivo a mano: edita la plantilla y re-renderiza.
+# Los marcadores de variable (doble llave) se sustituyen desde correo.env.
+# =====================================================================
+
+# ---------- Identidad (coherencia HELO/DNS/PTR obligatoria) ----------
+myhostname = {{FQDN_HOST}}
+myorigin = {{DOMINIO}}
+mydestination = {{FQDN_HOST}}, {{DOMINIO}}, localhost.{{DOMINIO}}, localhost
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+recipient_delimiter = +
+compatibility_level = 3.6
+smtpd_banner = $myhostname ESMTP
+
+# ---------- Red ----------
+# Solo IPv4 al inicio: habilita IPv6 solo cuando tengas AAAA + PTR v6
+# configurados y verificados (ver docs/02-dns.md, sección IPv6).
+inet_protocols = ipv4
+inet_interfaces = all
+
+# Redes CONFIADAS que pueden relayar SIN autenticación:
+# loopback (servicios locales) y la red interna de Docker (Mautic).
+# ¡Nada más! Cualquier otro cliente necesita SASL en submission (587).
+mynetworks = 127.0.0.0/8, {{RED_DOCKER_CIDR}}
+
+# ---------- Restricciones anti open-relay (NO quitar nada) ----------
+smtpd_relay_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    reject_unauth_destination
+
+smtpd_recipient_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    reject_unauth_destination,
+    reject_invalid_helo_hostname
+
+smtpd_helo_required = yes
+disable_vrfy_command = yes
+smtpd_delay_reject = yes
+
+# ---------- TLS entrante (puerto 25) ----------
+# "may": TLS oportunista — algunos emisores de DSN no cifran y no debemos
+# perder rebotes por exigir TLS al recibir.
+smtpd_tls_security_level = may
+smtpd_tls_cert_file = /etc/letsencrypt/live/{{FQDN_HOST}}/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/{{FQDN_HOST}}/privkey.pem
+smtpd_tls_protocols = >=TLSv1.2
+smtpd_tls_mandatory_protocols = >=TLSv1.2
+smtpd_tls_received_header = yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtpd_tls_loglevel = 1
+tls_random_source = dev:/dev/urandom
+
+# ---------- TLS saliente (oportunista, estándar en el puerto 25) ----------
+smtp_tls_security_level = may
+smtp_tls_protocols = >=TLSv1.2
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+smtp_tls_loglevel = 1
+
+# ---------- SASL (puerto 587, vía Dovecot) ----------
+# Solo se usa en submission: TLS obligatorio + autenticación obligatoria.
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_tls_security_options = noanonymous
+smtpd_sasl_local_domain = {{DOMINIO}}
+
+# ---------- Límites y control de velocidad ----------
+message_size_limit = 10485760
+mailbox_size_limit = 0
+smtpd_error_sleep_time = 2s
+smtpd_soft_error_limit = 5
+smtpd_hard_error_limit = 10
+
+# Válvulas de seguridad por cliente (anvil). Importante:
+# smtpd_client_event_limit_exceptions SOLO contiene loopback, de modo que
+# Mautic (red Docker) SÍ queda sujeto a estos límites.
+smtpd_client_connection_count_limit = 15
+smtpd_client_connection_rate_limit = 25
+smtpd_client_message_rate_limit = 240
+smtpd_client_event_limit_exceptions = 127.0.0.1
+
+# Espaciado de entrega saliente por dominio destino (calentamiento).
+# Ajustar según docs/04-entregabilidad.md. Un rate_delay > 0 fuerza
+# concurrencia 1 hacia cada dominio, suavizando el perfil de tráfico.
+default_destination_rate_delay = 2s
+default_destination_concurrency_limit = 4
+initial_destination_concurrency = 2
+
+# ---------- Cola y reintentos ----------
+minimal_backoff_time = 300s
+maximal_backoff_time = 4h
+queue_run_delay = 300s
+maximal_queue_lifetime = 5d
+bounce_queue_lifetime = 2d
+soft_bounce = no
+
+# ---------- Entrega local (buzón de rebotes) ----------
+# El alias {{DIRECCION_REBOTES}} (ver /etc/aliases) entrega en el Maildir
+# del usuario {{USUARIO_REBOTES}}, que Mautic lee por IMAP interno.
+home_mailbox = Maildir/
+local_recipient_maps = proxy:unix:passwd.byname $alias_maps
+
+# ---------- Firma DKIM (OpenDKIM vía milter) ----------
+# tempfail: si OpenDKIM cae, el envío se RETRASA en lugar de salir sin firma.
+milter_default_action = tempfail
+milter_protocol = 6
+smtpd_milters = inet:127.0.0.1:8891
+non_smtpd_milters = $smtpd_milters
+
+# ---------- Cabeceras ----------
+header_checks = regexp:/etc/postfix/header_checks
+
+# ---------- Logs ----------
+# Ubuntu 24.04: rsyslog escribe /var/log/mail.log (instalado por 10-base.sh).
+# Rotación: /etc/logrotate.d/postfix-correo (instalada por 20-postfix.sh).

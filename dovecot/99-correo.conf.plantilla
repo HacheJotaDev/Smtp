@@ -1,0 +1,46 @@
+# =====================================================================
+# /etc/dovecot/conf.d/99-correo.conf  —  GENERADO DESDE PLANTILLA
+# Origen: dovecot/99-correo.conf.plantilla → scripts/renderizar-plantillas.sh
+#
+# Dovecot MÍNIMO para dos funciones internas:
+#   1) IMAP del buzón de rebotes (Mautic lo lee).
+#   2) SASL AUTH para Postfix (submission 587).
+#
+# SEGURIDAD: no escucha en Internet. Solo loopback y la IP del gateway
+# de la red interna de Docker (por donde Mautic lo alcanza). El firewall
+# adicionalmente no expone 143.
+# =====================================================================
+
+listen = 127.0.0.1, {{GW_DOCKER}}
+protocols = imap
+
+# Autenticación simple permitida SOLO porque el servicio no es accesible
+# desde Internet (listen restringido + ufw). No usar estas opciones si se
+# abre Dovecot a redes externas.
+disable_plaintext_auth = no
+auth_mechanisms = plain login
+auth_verbose = yes
+
+ssl = no
+
+mail_location = Maildir:%h/Maildir
+mail_privileged_group = mail
+
+service imap-login {
+  inet_listener imap {
+    port = 143
+  }
+  inet_listener imaps {
+    # IMAP deshabilitado: no hay TLS interno ni exposición pública.
+    port = 0
+  }
+}
+
+# SASL para Postfix: socket dentro del directorio chroot de Postfix.
+service auth {
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0660
+    user = postfix
+    group = postfix
+  }
+}

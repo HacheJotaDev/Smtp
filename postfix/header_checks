@@ -1,0 +1,15 @@
+# =====================================================================
+# /etc/postfix/header_checks — filtros de cabeceras (regexp)
+# Uso moderado: aquí solo reglas seguras y comentadas. Las restricciones
+# fuertes viven en main.cf. El fichero se referencia desde main.cf
+# (header_checks = regexp:/etc/postfix/header_checks).
+# =====================================================================
+
+# Ejemplo (DESACTIVADO): descartar correo entrante que anuncie virus EICAR
+# /^Subject:.*EICAR[- ]TEST/                DISCARD prueba-eicar
+
+# Ejemplo (DESACTIVADO): normalizar cabeceras inyectadas por scripts locales
+# /^X-Originating-IP:/                      IGNORE
+
+# NOTA de cumplimiento: NO añadir reglas para ocultar la identidad del
+# remitente ni manipular cabeceras de tracking de otros sistemas.

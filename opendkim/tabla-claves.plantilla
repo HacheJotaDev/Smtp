@@ -1,0 +1,6 @@
+# =====================================================================
+# /etc/opendkim/TablaClaves  —  GENERADO DESDE PLANTILLA
+# Formato: <nombre-de-firma> <dominio>:<selector>:<ruta-clave-privada>
+# La clave privada se genera con scripts/30-dkim.sh y NUNCA se commitea.
+# =====================================================================
+{{SELECTOR_DKIM}}._domainkey.{{DOMINIO}} {{DOMINIO}}:{{SELECTOR_DKIM}}:/etc/opendkim/claves/{{DOMINIO}}/{{SELECTOR_DKIM}}.private

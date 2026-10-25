@@ -1,0 +1,6 @@
+# =====================================================================
+# /etc/opendkim/TablaFirmantes  —  GENERADO DESDE PLANTILLA
+# Formato (refile): <patrón-remitente> <nombre-de-firma en TablaClaves>
+# Firma todos los mensajes cuyo remitente sea del dominio.
+# =====================================================================
+*@{{DOMINIO}} {{SELECTOR_DKIM}}._domainkey.{{DOMINIO}}

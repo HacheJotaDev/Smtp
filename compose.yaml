@@ -1,0 +1,95 @@
+# =====================================================================
+# compose.yaml — Mautic 7.2.1 + MySQL 8.0
+#
+# - Red interna con subred FIJA 172.20.0.0/24 para que Postfix permita
+#   relay solo a esa red (mynetworks en postfix/main.cf.plantilla).
+# - Mautic se publica SOLO en 127.0.0.1:8080; nginx hace de proxy TLS.
+# - Los contenedores llegan a Postfix (25) y Dovecot (143) del HOST vía
+#   host.docker.internal -> GW_DOCKER (172.20.0.1).
+# - MySQL no publica puertos: inaccesible desde Internet.
+# =====================================================================
+
+name: campanas
+
+networks:
+  correo:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      # mysqladmin ping responde con éxito si el servidor acepta conexiones
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - correo
+
+  mautic_web:
+    image: mautic/mautic:7.2.1-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MAUTIC_DB_HOST: db
+      MAUTIC_DB_PORT: "3306"
+      MAUTIC_DB_DATABASE: ${MYSQL_DATABASE}
+      MAUTIC_DB_USER: ${MYSQL_USER}
+      MAUTIC_DB_PASSWORD: ${MYSQL_PASSWORD}
+      MAUTIC_TRUSTED_PROXIES: 172.20.0.0/24
+      PHP_INI_VALUE_MEMORY_LIMIT: 512M
+      PHP_INI_VALUE_UPLOAD_MAX_FILESIZE: 100M
+      PHP_INI_VALUE_POST_MAX_FILESIZE: 100M
+      PHP_INI_VALUE_DATE_TIMEZONE: UTC
+      DOCKER_MAUTIC_ROLE: mautic_web
+    extra_hosts:
+      # Permite que el contenedor alcance Postfix/Dovecot del HOST:
+      # host.docker.internal resuelve a la IP del gateway (172.20.0.1).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - mautic_config:/var/www/html/app/config
+      - mautic_logs:/var/www/html/var/logs
+      - mautic_media:/var/www/html/docroot/media
+    ports:
+      # NUNCA cambiar a "8080:80": dejaría Mautic expuesto sin TLS.
+      - "127.0.0.1:8080:80"
+    networks:
+      - correo
+
+  # --- Alternativa oficial de cron ------------------------------------
+  # Este stack usa el CRON DEL HOST (ver cron/crontab-mautic.plantilla)
+  # para tener control fino del ritmo de envío durante el calentamiento.
+  # Si prefieres el patrón oficial de la imagen, añade un servicio igual
+  # a mautic_web con DOCKER_MAUTIC_ROLE: mautic_cron y desactiva el cron
+  # del host. Documentado en docs/06-operacion.md.
+
+  # --- Redis (OPCIONAL, desactivado por defecto) ----------------------
+  # Mautic 7 puede usar Redis para cache de conteos de segmentos y locks.
+  # No es obligatorio para <5k envíos/día; actívalo solo si lo necesitas:
+  # redis:
+  #   image: redis:7
+  #   restart: unless-stopped
+  #   networks:
+  #     - correo
+  # (Tras activarlo, configura la cache en la UI de Mautic o en local.php.)
+
+volumes:
+  db_data:
+  mautic_config:
+  mautic_logs:
+  mautic_media:

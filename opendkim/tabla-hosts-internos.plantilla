@@ -1,0 +1,9 @@
+# =====================================================================
+# /etc/opendkim/TablaHostsInternos  —  GENERADO DESDE PLANTILLA
+# Hosts que se consideran internos: su correo se FIRMA (y no se
+# re-verifica). Loopback + red interna de Docker (Mautic).
+# =====================================================================
+127.0.0.0/8
+{{RED_DOCKER_CIDR}}
+{{FQDN_HOST}}
+localhost

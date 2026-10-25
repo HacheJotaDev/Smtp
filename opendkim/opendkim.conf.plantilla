@@ -1,0 +1,36 @@
+# =====================================================================
+# /etc/opendkim.conf  —  GENERADO DESDE PLANTILLA
+# Origen: opendkim/opendkim.conf.plantilla → scripts/renderizar-plantillas.sh
+# Firma DKIM (relaxed/simple) de todo el correo saliente del dominio.
+# =====================================================================
+
+Syslog          yes
+SyslogSuccess   yes
+LogWhy          yes
+
+UserID          opendkim:opendkim
+UMask           007
+
+# El milter escucha SOLO en loopback (Postfix es local al host).
+Socket          inet:8891@127.0.0.1
+PidFile         /run/opendkim/opendkim.pid
+
+Mode            sv
+Canonicalization relaxed/simple
+SubDomains      no
+OversignHeaders From
+
+AutoRestart     Yes
+AutoRestartRate 10/1M
+
+# Mapeo de claves y firmantes (generados por renderizar-plantillas.sh)
+KeyTable        refile:/etc/opendkim/TablaClaves
+SigningTable    refile:/etc/opendkim/TablaFirmantes
+
+# Hosts cuya entrada al milter se considera "interna" (se firma):
+# loopback y la red interna de Docker (Mautic).
+ExternalIgnoreList refile:/etc/opendkim/TablaHostsInternos
+InternalHosts      refile:/etc/opendkim/TablaHostsInternos
+
+# No firmar de nuevo correo ya firmado legítimamente que retransitemos
+SignatureAlgorithm rsa-sha256
